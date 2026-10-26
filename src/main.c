@@ -23,7 +23,7 @@
 #define AP_SSID "SBS-Grupo5"
 #define AP_PASS "ColectorG5!"
 
-/* Matches the confirmed module; adapt only after scanning the actual bus. */
+/* Direccion del modulo confirmado; cambiarla solo despues de escanear el bus real. */
 #define SENSOR_ADDR 0x76U
 
 static const char * const TAG = "G5-WEB";
@@ -58,7 +58,7 @@ static void publish(esp_err_t error, int32_t centi, uint8_t chip)
     if (xSemaphoreGive(s_lock) != pdTRUE) ESP_LOGE(TAG, "mutex release failed");
 }
 
-/* Sole owner of I2C: HTTP never waits for a sensor transaction. */
+/* Unica duena del I2C: el servidor HTTP nunca espera una transaccion del sensor. */
 static void sensor_task(void *arg)
 {
     (void)arg;
@@ -70,7 +70,7 @@ static void sensor_task(void *arg)
         .scl_io_num = GPIO_NUM_22, .clk_source = I2C_CLK_SRC_DEFAULT,
         .glitch_ignore_cnt = 7, .flags.enable_internal_pullup = false,
     };
-    /* Bus allocation belongs to initialization, not to the acquisition loop. */
+    /* El bus se crea en la inicializacion, no dentro del ciclo de adquisicion. */
     const esp_err_t bus_error = i2c_new_master_bus(&cfg, &bus);
     if (bus_error != ESP_OK) {
         publish(bus_error, 0, 0);
@@ -78,7 +78,7 @@ static void sensor_task(void *arg)
         vTaskDelete(NULL);
         return;
     }
-    /* Create the device once. A missing sensor can recover using this handle. */
+    /* El dispositivo se crea una vez; si el sensor falta, se recupera con este mismo handle. */
     esp_err_t setup_error = bmp280_init(&sensor, bus, SENSOR_ADDR);
     ready = setup_error == ESP_OK;
     if (ready) ESP_LOGI(TAG, "chip_id=0x%02X", sensor.chip_id);
@@ -88,7 +88,7 @@ static void sensor_task(void *arg)
         return;
     }
     TickType_t next = xTaskGetTickCount();
-    /* Permanent RTOS task; all I2C waits are bounded and every cycle yields. */
+    /* Tarea RTOS permanente: toda espera I2C es acotada y cada ciclo cede la CPU. */
     for (;;) {
         esp_err_t err = ESP_OK;
         if (err == ESP_OK && !ready) {
@@ -106,7 +106,7 @@ static void sensor_task(void *arg)
                      esp_get_free_heap_size());
         } else {
             ESP_LOGW(TAG, "sensor: %s", esp_err_to_name(err));
-            ready = false; /* Re-read ID/calibration next cycle, reusing the handle. */
+            ready = false; /* En el proximo ciclo se relee ID y calibracion, reutilizando el handle. */
         }
         if (xTaskDelayUntil(&next, pdMS_TO_TICKS(SAMPLE_MS)) != pdTRUE) {
             ESP_LOGW(TAG, "sample deadline missed");
@@ -168,7 +168,7 @@ static esp_err_t temp_get(httpd_req_t *req)
 
 static void start_network(void)
 {
-    /* Do not silently erase an existing NVS partition on initialization errors. */
+    /* No se borra la particion NVS en silencio si falla la inicializacion. */
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());

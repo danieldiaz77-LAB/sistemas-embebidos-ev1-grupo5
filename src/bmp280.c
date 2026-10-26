@@ -19,7 +19,7 @@ static esp_err_t read_reg(bmp280_t *s, uint8_t reg, uint8_t *buf, size_t len)
     return i2c_master_transmit_receive(s->dev, &reg, 1, buf, len, I2C_TIMEOUT_MS);
 }
 
-/* Bounded polling; no busy-wait y sin loop de perifericos  */
+/* Sondeo acotado: sin espera activa ni bucles infinitos sobre el periferico. */
 static esp_err_t wait_clear(bmp280_t *s, uint8_t mask)
 {
     for (uint8_t attempt = 0; attempt < STATUS_ATTEMPTS; ++attempt) {
@@ -40,7 +40,7 @@ esp_err_t bmp280_init(bmp280_t *s, i2c_master_bus_handle_t bus, uint8_t addr)
         .device_address = addr,
         .scl_speed_hz = 100000,
     };
-    /* Allocate once; retries reuse the device handle. Caller zero-initializes s. */
+    /* Se reserva una sola vez; los reintentos reutilizan el handle. Quien llama debe dejar s en cero. */
     esp_err_t err = ESP_OK;
     if (s->dev == NULL) err = i2c_master_bus_add_device(bus, &cfg, &s->dev);
     if (err != ESP_OK) {
@@ -51,7 +51,7 @@ esp_err_t bmp280_init(bmp280_t *s, i2c_master_bus_handle_t bus, uint8_t addr)
         return err;
     }
     if (s->chip_id != 0x58U && s->chip_id != 0x60U) return ESP_ERR_NOT_SUPPORTED;
-    err = wait_clear(s, 0x01U); /* NVM calibration copy complete. */
+    err = wait_clear(s, 0x01U); /* Espera a que termine la copia de calibracion desde la NVM. */
     if (err != ESP_OK) return err;
     uint8_t c[6];
     err = read_reg(s, REG_CALIB, c, sizeof c);
@@ -74,7 +74,7 @@ esp_err_t bmp280_read_temp_centi(bmp280_t *s, int32_t *centi_c)
         return err;
     }
     vTaskDelay(pdMS_TO_TICKS(MEAS_WAIT_MS));
-    err = wait_clear(s, 0x09U); /* measuring and im_update must be clear. */
+    err = wait_clear(s, 0x09U); /* Espera a que measuring e im_update esten en 0 (conversion lista). */
     if (err != ESP_OK) return err;
     uint8_t d[3];
     err = read_reg(s, REG_TEMP_MSB, d, sizeof d);
