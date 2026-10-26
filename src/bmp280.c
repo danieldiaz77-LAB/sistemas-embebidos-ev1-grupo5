@@ -19,7 +19,7 @@ static esp_err_t read_reg(bmp280_t *s, uint8_t reg, uint8_t *buf, size_t len)
     return i2c_master_transmit_receive(s->dev, &reg, 1, buf, len, I2C_TIMEOUT_MS);
 }
 
-/* Bounded polling; no busy-wait and no unbounded peripheral loop. */
+/* Bounded polling; no busy-wait y sin loop de perifericos  */
 static esp_err_t wait_clear(bmp280_t *s, uint8_t mask)
 {
     for (uint8_t attempt = 0; attempt < STATUS_ATTEMPTS; ++attempt) {
